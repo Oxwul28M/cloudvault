@@ -1,0 +1,140 @@
+version: '3.8'
+
+# =============================================================================
+# CloudVault - Aplicación Cliente-Servidor en GCP
+# Actividad Sumativa 2 - Arquitectura de Servicios con Docker Compose
+# =============================================================================
+
+services:
+
+  # ---------------------------------------------------------------------------
+  # BASE DE DATOS - PostgreSQL
+  # ---------------------------------------------------------------------------
+  db:
+    image: postgres:15-alpine
+    container_name: cloudvault_db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB:-cloudvault}
+      POSTGRES_USER: ${POSTGRES_USER:-cvuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cvpassword123}
+    volumes:
+      - db_data:/var/lib/postgresql/data
+      - ./backend/db/init.sql:/docker-entrypoint-initdb.d/init.sql:ro
+    networks:
+      - internal_net
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-cvuser} -d ${POSTGRES_DB:-cloudvault}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    # Límite de recursos para e2-micro (1 GB RAM)
+    mem_limit: 200m
+    mem_reservation: 100m
+
+  # ---------------------------------------------------------------------------
+  # BACKEND - API Node.js / Express
+  # ---------------------------------------------------------------------------
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: cloudvault_backend
+    restart: unless-stopped
+    environment:
+      NODE_ENV: production
+      PORT: 4000
+      POSTGRES_HOST: db
+      POSTGRES_PORT: 5432
+      POSTGRES_DB: ${POSTGRES_DB:-cloudvault}
+      POSTGRES_USER: ${POSTGRES_USER:-cvuser}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-cvpassword123}
+      JWT_SECRET: ${JWT_SECRET:-change_this_secret_in_production_please}
+      UPLOAD_DIR: /app/storage
+      SFTP_HOST: sftp
+      SFTP_PORT: 22
+      SFTP_USER: ${SFTP_USER:-sftpuser}
+      SFTP_PASSWORD: ${SFTP_PASSWORD:-SftpPass123!}
+    volumes:
+      - file_storage:/app/storage
+    networks:
+      - internal_net
+    depends_on:
+      db:
+        condition: service_healthy
+    mem_limit: 300m
+    mem_reservation: 150m
+
+  # ---------------------------------------------------------------------------
+  # SERVIDOR SFTP - atmoz/sftp (OpenSSH con chroot)
+  # ---------------------------------------------------------------------------
+  sftp:
+    image: atmoz/sftp:alpine
+    container_name: cloudvault_sftp
+    restart: unless-stopped
+    # Formato: usuario:contraseña:uid:gid:directorio
+    # El uid/gid 1000 es estándar en Ubuntu; el directorio es relativo al chroot
+    command: >
+      ${SFTP_USER:-sftpuser}:${SFTP_PASSWORD:-SftpPass123!}:1001:1001:uploads
+    volumes:
+      - file_storage:/home/${SFTP_USER:-sftpuser}/uploads
+      # Claves SSH opcionales (atmoz/sftp las auto-genera si no se montan):
+      # - ./sftp/ssh_host_rsa_key:/etc/ssh/ssh_host_rsa_key:ro
+      # - ./sftp/ssh_host_ed25519_key:/etc/ssh/ssh_host_ed25519_key:ro
+      - ./sftp/users.conf:/etc/sftp/users.conf:ro
+    ports:
+      - "2222:22"
+    networks:
+      - internal_net
+      - external_net
+    mem_limit: 80m
+    mem_reservation: 30m
+
+  # ---------------------------------------------------------------------------
+  # FRONTEND + REVERSE PROXY - Nginx
+  # ---------------------------------------------------------------------------
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: cloudvault_frontend
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      # - "443:443"  # Descomentar si se configuran certificados SSL
+    volumes:
+      - ./frontend/nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+      # - ./frontend/nginx/ssl:/etc/nginx/ssl:ro
+    networks:
+      - internal_net
+      - external_net
+    depends_on:
+      - backend
+    mem_limit: 80m
+    mem_reservation: 30m
+
+# =============================================================================
+# VOLÚMENES COMPARTIDOS
+# =============================================================================
+volumes:
+  db_data:
+    driver: local
+  file_storage:
+    driver: local
+    # NOTA: En Play with Docker o entornos sin /opt/cloudvault/storage,
+    # este volumen gestionado es suficiente. En un VPS real puedes
+    # descomentar las líneas driver_opts para usar un path del host:
+    # driver_opts:
+    #   type: none
+    #   o: bind
+    #   device: /opt/cloudvault/storage
+
+# =============================================================================
+# REDES
+# =============================================================================
+networks:
+  internal_net:
+    driver: bridge
+    internal: true   # Red aislada: sólo comunicación entre contenedores
+  external_net:
+    driver: bridge   # Red con acceso al exterior (puertos publicados)

@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="description" content="CloudVault - Sistema seguro de almacenamiento y transferencia de archivos en la nube con soporte SFTP" />
+  <title>CloudVault — Almacenamiento Seguro en la Nube</title>
+
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet" />
+
+  <!-- Iconos (Feather Icons via CDN) -->
+  <script src="https://unpkg.com/feather-icons@4.29.0/dist/feather.min.js" defer></script>
+
+  <link rel="stylesheet" href="styles.css" />
+</head>
+<body class="dark-theme">
+
+  <!-- =========================================================
+       OVERLAY DE CARGA
+  ========================================================= -->
+  <div id="loading-overlay" class="loading-overlay">
+    <div class="spinner"></div>
+    <p>Conectando con CloudVault...</p>
+  </div>
+
+  <!-- =========================================================
+       PANTALLA DE AUTENTICACIÓN (Login / Registro)
+  ========================================================= -->
+  <section id="auth-section" class="auth-section hidden">
+    <div class="auth-card">
+      <!-- Logo y título -->
+      <div class="auth-header">
+        <div class="logo-icon">
+          <svg width="40" height="40" viewBox="0 0 40 40" fill="none" xmlns="http://www.w3.org/2000/svg">
+            <rect width="40" height="40" rx="10" fill="url(#gradient1)"/>
+            <path d="M20 8C14.477 8 10 12.477 10 18c0 2.13.665 4.104 1.8 5.72L8 28h24l-3.8-4.28A9.954 9.954 0 0030 18c0-5.523-4.477-10-10-10z" fill="white" opacity=".9"/>
+            <path d="M15 22v4h10v-4" stroke="white" stroke-width="2" stroke-linecap="round"/>
+            <defs>
+              <linearGradient id="gradient1" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+                <stop stop-color="#6366F1"/>
+                <stop offset="1" stop-color="#8B5CF6"/>
+              </linearGradient>
+            </defs>
+          </svg>
+        </div>
+        <h1>CloudVault</h1>
+        <p>Sistema Seguro de Almacenamiento</p>
+      </div>
+
+      <!-- Tabs Login / Registro -->
+      <div class="auth-tabs">
+        <button id="tab-login" class="tab-btn active" onclick="showTab('login')">Iniciar Sesión</button>
+        <button id="tab-register" class="tab-btn" onclick="showTab('register')">Registrarse</button>
+      </div>
+
+      <!-- Formulario de Login -->
+      <form id="login-form" class="auth-form" onsubmit="handleLogin(event)">
+        <div class="form-group">
+          <label for="login-username">Usuario</label>
+          <div class="input-icon">
+            <i data-feather="user"></i>
+            <input type="text" id="login-username" placeholder="tu_usuario" required autocomplete="username" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="login-password">Contraseña</label>
+          <div class="input-icon">
+            <i data-feather="lock"></i>
+            <input type="password" id="login-password" placeholder="••••••••" required autocomplete="current-password" />
+          </div>
+        </div>
+        <div id="login-error" class="alert alert-error hidden"></div>
+        <button type="submit" class="btn btn-primary btn-full" id="login-btn">
+          <span class="btn-text">Iniciar Sesión</span>
+          <span class="btn-spinner hidden"></span>
+        </button>
+        <p class="auth-hint">Admin por defecto: <code>admin</code> / <code>Admin123!</code></p>
+      </form>
+
+      <!-- Formulario de Registro -->
+      <form id="register-form" class="auth-form hidden" onsubmit="handleRegister(event)">
+        <div class="form-group">
+          <label for="reg-username">Nombre de usuario</label>
+          <div class="input-icon">
+            <i data-feather="user"></i>
+            <input type="text" id="reg-username" placeholder="mi_usuario" required minlength="3" maxlength="50" />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="reg-email">Correo electrónico</label>
+          <div class="input-icon">
+            <i data-feather="mail"></i>
+            <input type="email" id="reg-email" placeholder="correo@ejemplo.com" required />
+          </div>
+        </div>
+        <div class="form-group">
+          <label for="reg-password">Contraseña</label>
+          <div class="input-icon">
+            <i data-feather="lock"></i>
+            <input type="password" id="reg-password" placeholder="Mínimo 8 caracteres" required minlength="8" />
+          </div>
+        </div>
+        <div id="register-error" class="alert alert-error hidden"></div>
+        <div id="register-success" class="alert alert-success hidden"></div>
+        <button type="submit" class="btn btn-primary btn-full" id="register-btn">
+          Crear Cuenta
+        </button>
+      </form>
+    </div>
+
+    <!-- Decoración de fondo -->
+    <div class="auth-bg-orb orb-1"></div>
+    <div class="auth-bg-orb orb-2"></div>
+    <div class="auth-bg-orb orb-3"></div>
+  </section>
+
+  <!-- =========================================================
+       DASHBOARD PRINCIPAL (visible después del login)
+  ========================================================= -->
+  <div id="dashboard" class="dashboard hidden">
+
+    <!-- SIDEBAR -->
+    <aside class="sidebar" id="sidebar">
+      <div class="sidebar-logo">
+        <svg width="28" height="28" viewBox="0 0 40 40" fill="none">
+          <rect width="40" height="40" rx="10" fill="url(#gradient2)"/>
+          <path d="M20 8C14.477 8 10 12.477 10 18c0 2.13.665 4.104 1.8 5.72L8 28h24l-3.8-4.28A9.954 9.954 0 0030 18c0-5.523-4.477-10-10-10z" fill="white" opacity=".9"/>
+          <defs>
+            <linearGradient id="gradient2" x1="0" y1="0" x2="40" y2="40" gradientUnits="userSpaceOnUse">
+              <stop stop-color="#6366F1"/><stop offset="1" stop-color="#8B5CF6"/>
+            </linearGradient>
+          </defs>
+        </svg>
+        <span>CloudVault</span>
+      </div>
+
+      <nav class="sidebar-nav">
+        <a href="#" class="nav-item active" onclick="showView('files', this)">
+          <i data-feather="folder"></i> <span>Mis Archivos</span>
+        </a>
+        <a href="#" class="nav-item" onclick="showView('upload', this)">
+          <i data-feather="upload-cloud"></i> <span>Subir Archivos</span>
+        </a>
+        <a href="#" class="nav-item" onclick="showView('sftp', this)">
+          <i data-feather="terminal"></i> <span>Info SFTP</span>
+        </a>
+      </nav>
+
+      <div class="sidebar-footer">
+        <div class="user-info">
+          <div class="user-avatar" id="user-avatar-sidebar">U</div>
+          <div>
+            <p id="sidebar-username" class="user-name">Usuario</p>
+            <p id="sidebar-role" class="user-role">user</p>
+          </div>
+        </div>
+        <button class="btn-icon" onclick="logout()" title="Cerrar sesión">
+          <i data-feather="log-out"></i>
+        </button>
+      </div>
+    </aside>
+
+    <!-- CONTENIDO PRINCIPAL -->
+    <main class="main-content">
+
+      <!-- TOPBAR -->
+      <header class="topbar">
+        <button class="btn-icon sidebar-toggle" onclick="toggleSidebar()" id="sidebar-toggle">
+          <i data-feather="menu"></i>
+        </button>
+        <div class="topbar-title" id="topbar-title">Mis Archivos</div>
+        <div class="topbar-right">
+          <div class="stats-badge" id="stats-badge">
+            <i data-feather="hard-drive"></i>
+            <span id="stats-size">— MB</span>
+          </div>
+          <div class="user-avatar-top" id="user-avatar-top">U</div>
+        </div>
+      </header>
+
+      <!-- ------------------------------------------------
+           VISTA: MIS ARCHIVOS
+      ------------------------------------------------ -->
+      <section id="view-files" class="view active">
+        <div class="view-header">
+          <h2>Mis Archivos</h2>
+          <div class="view-actions">
+            <div class="search-box">
+              <i data-feather="search"></i>
+              <input type="text" id="search-input" placeholder="Buscar archivos..."
+                     oninput="debounceSearch()" />
+            </div>
+            <button class="btn btn-primary" onclick="showView('upload', document.querySelector('.nav-item:nth-child(2)'))">
+              <i data-feather="plus"></i> Subir
+            </button>
+          </div>
+        </div>
+
+        <div id="files-grid" class="files-grid">
+          <div class="empty-state" id="empty-state">
+            <i data-feather="cloud-off"></i>
+            <p>No tienes archivos aún</p>
+            <button class="btn btn-primary" onclick="showView('upload', document.querySelector('.nav-item:nth-child(2)'))">
+              Subir primer archivo
+            </button>
+          </div>
+        </div>
+
+        <!-- Paginación -->
+        <div id="pagination" class="pagination hidden">
+          <button id="prev-page" class="btn btn-ghost" onclick="changePage(-1)">
+            <i data-feather="chevron-left"></i> Anterior
+          </button>
+          <span id="page-info">Página 1 de 1</span>
+          <button id="next-page" class="btn btn-ghost" onclick="changePage(1)">
+            Siguiente <i data-feather="chevron-right"></i>
+          </button>
+        </div>
+      </section>
+
+      <!-- ------------------------------------------------
+           VISTA: SUBIR ARCHIVOS
+      ------------------------------------------------ -->
+      <section id="view-upload" class="view hidden">
+        <div class="view-header">
+          <h2>Subir Archivos</h2>
+        </div>
+
+        <!-- Zona de drag & drop -->
+        <div class="upload-zone" id="upload-zone"
+             ondragover="handleDragOver(event)"
+             ondragleave="handleDragLeave(event)"
+             ondrop="handleDrop(event)"
+             onclick="document.getElementById('file-input').click()">
+          <div class="upload-zone-content">
+            <div class="upload-icon-wrap">
+              <i data-feather="upload-cloud"></i>
+            </div>
+            <p class="upload-main-text">Arrastra archivos aquí</p>
+            <p class="upload-sub-text">o haz click para seleccionar</p>
+            <p class="upload-limits">Máx. 50 MB por archivo · Hasta 10 archivos</p>
+          </div>
+          <input type="file" id="file-input" multiple hidden
+                 onchange="handleFileSelect(event)" />
+        </div>
+
+        <!-- Lista de archivos seleccionados -->
+        <div id="selected-files" class="selected-files-list hidden">
+          <h3>Archivos seleccionados</h3>
+          <ul id="file-list-preview"></ul>
+          <div class="upload-actions">
+            <button class="btn btn-ghost" onclick="clearFileSelection()">
+              <i data-feather="x"></i> Limpiar
+            </button>
+            <button class="btn btn-primary" id="upload-btn" onclick="uploadFiles()">
+              <i data-feather="upload"></i> Subir Archivos
+            </button>
+          </div>
+        </div>
+
+        <!-- Barra de progreso -->
+        <div id="upload-progress" class="upload-progress hidden">
+          <div class="progress-bar">
+            <div class="progress-fill" id="progress-fill"></div>
+          </div>
+          <p id="progress-text">Subiendo...</p>
+        </div>
+
+        <!-- Resultado -->
+        <div id="upload-result" class="hidden"></div>
+      </section>
+
+      <!-- ------------------------------------------------
+           VISTA: INFORMACIÓN SFTP
+      ------------------------------------------------ -->
+      <section id="view-sftp" class="view hidden">
+        <div class="view-header">
+          <h2>Conexión SFTP</h2>
+        </div>
+
+        <div class="sftp-info-grid">
+          <div class="info-card">
+            <div class="info-card-header">
+              <i data-feather="server"></i>
+              <h3>Datos de Conexión</h3>
+            </div>
+            <div class="info-rows">
+              <div class="info-row">
+                <span class="info-label">Host / IP</span>
+                <code class="info-value" id="sftp-host">— (IP del VPS)</code>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Puerto SFTP</span>
+                <code class="info-value">2222</code>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Usuario</span>
+                <code class="info-value" id="sftp-user">sftpuser</code>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Directorio remoto</span>
+                <code class="info-value">/uploads/</code>
+              </div>
+              <div class="info-row">
+                <span class="info-label">Protocolo</span>
+                <code class="info-value">SFTP (SSH File Transfer)</code>
+              </div>
+            </div>
+          </div>
+
+          <div class="info-card">
+            <div class="info-card-header">
+              <i data-feather="terminal"></i>
+              <h3>Comandos de Conexión</h3>
+            </div>
+            <div class="code-block">
+              <div class="code-block-header">
+                <span>Terminal / CLI</span>
+                <button class="btn-icon copy-btn" onclick="copyCode('sftp-cmd')" title="Copiar">
+                  <i data-feather="copy"></i>
+                </button>
+              </div>
+              <pre id="sftp-cmd"># Conectar por línea de comandos:
+sftp -P 2222 sftpuser@&lt;IP-DEL-VPS&gt;
+
+# Subir un archivo:
+put mi_archivo.pdf /uploads/
+
+# Listar archivos:
+ls /uploads/
+
+# Descargar un archivo:
+get /uploads/archivo.pdf ./local/</pre>
+            </div>
+          </div>
+
+          <div class="info-card">
+            <div class="info-card-header">
+              <i data-feather="shield"></i>
+              <h3>Seguridad Implementada</h3>
+            </div>
+            <ul class="security-list">
+              <li><i data-feather="check-circle"></i> Aislamiento chroot (cada usuario ve solo su directorio)</li>
+              <li><i data-feather="check-circle"></i> Contraseñas encriptadas con bcrypt</li>
+              <li><i data-feather="check-circle"></i> Permisos de directorio 755 (propietario: root)</li>
+              <li><i data-feather="check-circle"></i> Volumen compartido entre backend y SFTP</li>
+              <li><i data-feather="check-circle"></i> Puerto no estándar (2222) para reducir bots</li>
+              <li><i data-feather="check-circle"></i> Rate limiting en la API REST</li>
+              <li><i data-feather="check-circle"></i> JWT con expiración de 8 horas</li>
+              <li><i data-feather="check-circle"></i> Registro de auditoría de todas las operaciones</li>
+            </ul>
+          </div>
+
+          <div class="info-card">
+            <div class="info-card-header">
+              <i data-feather="layout"></i>
+              <h3>Arquitectura del Sistema</h3>
+            </div>
+            <div class="arch-diagram">
+              <div class="arch-layer">
+                <span class="arch-badge client">Cliente</span>
+                <span class="arch-label">Navegador Web (HTML/CSS/JS)</span>
+              </div>
+              <div class="arch-arrow">↓ HTTP :80</div>
+              <div class="arch-layer">
+                <span class="arch-badge proxy">Proxy</span>
+                <span class="arch-label">Nginx (Reverse Proxy + Static)</span>
+              </div>
+              <div class="arch-arrow">↓ HTTP :4000</div>
+              <div class="arch-layer">
+                <span class="arch-badge api">API</span>
+                <span class="arch-label">Node.js + Express (REST API)</span>
+              </div>
+              <div class="arch-arrow">↓ TCP :5432 &nbsp;&nbsp;&nbsp; ↓ Volumen</div>
+              <div class="arch-layer-row">
+                <div class="arch-layer">
+                  <span class="arch-badge db">BD</span>
+                  <span class="arch-label">PostgreSQL</span>
+                </div>
+                <div class="arch-layer">
+                  <span class="arch-badge sftp">SFTP</span>
+                  <span class="arch-label">atmoz/sftp :2222</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+    </main>
+  </div>
+
+  <!-- =========================================================
+       MODAL: CONFIRMAR ELIMINACIÓN
+  ========================================================= -->
+  <div id="delete-modal" class="modal-overlay hidden" onclick="closeDeleteModal(event)">
+    <div class="modal">
+      <div class="modal-icon danger">
+        <i data-feather="trash-2"></i>
+      </div>
+      <h3>¿Eliminar archivo?</h3>
+      <p id="delete-modal-filename" class="modal-subtitle"></p>
+      <p class="modal-warning">Esta acción no se puede deshacer.</p>
+      <div class="modal-actions">
+        <button class="btn btn-ghost" onclick="document.getElementById('delete-modal').classList.add('hidden')">
+          Cancelar
+        </button>
+        <button class="btn btn-danger" id="confirm-delete-btn">
+          <i data-feather="trash-2"></i> Eliminar
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast de notificaciones -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- JavaScript principal -->
+  <script src="app.js"></script>
+</body>
+</html>
