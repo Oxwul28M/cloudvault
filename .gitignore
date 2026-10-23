@@ -1,0 +1,23 @@
+# Dependencias
+node_modules/
+npm-debug.log*
+
+# Variables de entorno reales (nunca subir a Git)
+.env
+
+# Archivos subidos por usuarios
+/frontend/nginx/ssl/*.key
+/frontend/nginx/ssl/*.crt
+/sftp/ssh_host_rsa_key
+/sftp/ssh_host_ed25519_key
+
+# Logs
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Editor
+.vscode/
+.idea/
